@@ -7,7 +7,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_SUBREDDITS = ["nosleep", "creepypasta"]
 
 
-def fetch_stories(subreddits=None, limit=25, sort="hot"):
+MIN_SCORE = 10
+
+
+def fetch_stories(subreddits=None, limit=25, sort="top"):
     subreddits = subreddits or DEFAULT_SUBREDDITS
     reddit = get_reddit_client()
     total_new = 0
@@ -28,6 +31,10 @@ def fetch_stories(subreddits=None, limit=25, sort="hot"):
         new_count = 0
         for post in posts:
             if not post.is_self or not post.selftext:
+                continue
+            if post.score < MIN_SCORE:
+                continue
+            if sub_name == "creepypasta" and post.link_flair_text != "Text Story":
                 continue
             if story_exists(post.id):
                 continue

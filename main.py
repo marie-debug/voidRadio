@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from db import init_db, get_stories, get_last_fetch_time
 from fetcher import fetch_stories
+from formatter import format_all
 
 FETCH_INTERVAL_DAYS = 4
 
@@ -26,6 +27,10 @@ def main():
         logger.info("Fetching stories from Reddit...")
         new_count = fetch_stories()
         logger.info(f"Ingested {new_count} new stories")
+
+    formatted = format_all()
+    if formatted:
+        logger.info(f"Formatted {formatted} new transmissions")
 
     stories = get_stories()
     logger.info(f"Total stories in database: {len(stories)}")
