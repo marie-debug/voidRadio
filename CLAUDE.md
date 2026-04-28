@@ -10,7 +10,7 @@ voidRadio is an experimental "anomalous radio station" — a continuous broadcas
 - **Reddit API:** PRAW
 - **Storage:** SQLite
 - **LLM:** Anthropic Claude API for content tagging and transmission formatting
-- **TTS:** pyttsx3 or gTTS (optional audio output)
+- **TTS:** ElevenLabs (distinct voices for presenter vs caller)
 - **Scheduling:** apscheduler
 
 ## Project Structure
@@ -22,6 +22,7 @@ voidRadio/
   reddit_client.py     # PRAW wrapper
   fetcher.py           # Fetch job — pulls top-rated posts from Reddit
   formatter.py         # Claude API — transforms stories into radio transmissions
+  voice.py             # ElevenLabs TTS — synthesizes transmissions to audio/*.mp3
 ```
 
 ## Development Guidelines
@@ -65,13 +66,21 @@ uv run main.py
 
 ## Next Steps
 
-### Audio (ElevenLabs)
-- Build `voice.py` — pipe formatted transmissions through ElevenLabs API for spoken audio
-- Distinct voices for presenter vs callers
-- ElevenLabs API key already in `.env`
-
-### Broadcast Engine
+### Broadcast Engine (next up)
 - Build `scheduler.py` — continuous broadcast loop that selects and plays transmissions with ambient timing
+- For MVP, iterate over `audio/*.mp3` directly; DB metadata routing can come later
+- **Test fixtures:** use the 2 existing MP3s in `audio/` (`transmission_53.mp3` Format A with caller, `transmission_58.mp3` Format B presenter-only) — **don't re-run `main.py` / `voice.py` while developing `scheduler.py`**. No need to re-fetch from Reddit, re-format with Claude, or re-synthesize with ElevenLabs. The 2 MP3s are enough to prototype playback, ordering, and ambient timing
+- **Backup copies** of the 2 fixture MP3s live at `/home/marion/Desktop/void radio audio/` in case `audio/` gets cleared (it's gitignored)
+- The remaining ~25 transmissions will be synthesized in a later batch once the broadcast engine is solid
+
+### Voices
+- Currently using **free default ElevenLabs voices** for presenter and caller — good enough to validate the pipeline
+- Later: create custom/distinct voices that match the station identity (calm/mysterious presenter, scared/urgent callers). Likely via ElevenLabs voice cloning or designed voices
+- Also later: rotate multiple caller voices instead of one shared caller voice
+
+### Wire `voice.py` into `main.py`
+- Currently standalone (`uv run voice.py`) — wire into the fetch → format → synthesize pipeline once cost/quality is comfortable
+- Consider real audio SFX mixing for `[STATIC]` / `[LINE DROPS]` (currently stripped)
 
 ### Future: SCP Wiki Source
 - Add SCP Wiki scraper as second content source (Creative Commons licensed, better long-term fit)
@@ -97,3 +106,12 @@ uv run main.py
 - Cleaned DB of low-quality/removed stories
 - Defined station identity: 19.13 kHz primary frequency, 0.001 Hz secondary
 - Successfully formatted 25 stories into transmissions using Haiku
+
+### 2026-04-28
+- Built `voice.py` — ElevenLabs TTS: parses `[PRESENTER]`/`[CALLER]` tags, strips SFX tags (e.g. `[STATIC]`, `[LINE DROPS]`) for MVP, synthesizes each segment with the matching voice, concatenates MP3 chunks per transmission to `audio/transmission_{id}.mp3`. Caches by file existence so we never pay twice for the same audio
+- Added `elevenlabs` dependency
+- Added `ELEVENLABS_PRESENTER_VOICE_ID` and `ELEVENLABS_CALLER_VOICE_ID` env vars (per-speaker voice routing without code changes)
+- Added `audio/` to `.gitignore`
+- Smoke-tested on two transmissions (one Format B presenter-only, one Format A with caller) — voices distinct, no SFX tag words spoken, no jarring seams from byte-level MP3 concat
+- **MVP scope:** keeping just these 2 MP3s as the working set for now (enough to prototype `scheduler.py` against); the remaining ~25 transmissions will be synthesized later
+- **MVP scope:** using free default ElevenLabs voices for now; custom/distinct voices that match the station identity (calm presenter / scared callers) come later
